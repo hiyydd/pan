@@ -394,14 +394,14 @@ CMD ["python", "src/main.py"]
 ## 支持与反馈 (Support & Feedback)
 - 🐛 Bug 报告 (Bug Reports): GitHub Issues
 - 💡 功能建议 (Feature Requests): GitHub Discussions
-- 📧 邮件联系 (Email Contact): your-email@example.com
+
 
 
 ## 开发团队 (Development Team)
-Your Name
+hiyydd
 
 ## 最后更新 (Last Updated)
-2024年1月
+2025年8月
 
 ## 版本 (Version)
-1.0.0
+1.3.0
