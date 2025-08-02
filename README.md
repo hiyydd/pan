@@ -98,208 +98,443 @@ netdisk-project/
 ```
 
 
-## 详细安装教程 (Detailed Installation Guide)
+# 简易网盘 (Simple Netdisk) 完整部署指南
 
-### 步骤 1: 环境准备 (Step 1: Environment Setup)
-
-#### Windows 用户 (Windows Users)
-- 安装 Python (Install Python)
-  ```bash
-  # 访问 https://python.org/downloads/ 下载最新版本
-  # Visit https://python.org/downloads/ to download the latest version
-  # 安装时勾选 "Add Python to PATH"
-  # Check "Add Python to PATH" during installation
-  ```
-- 安装 Node.js (Install Node.js)
-  ```bash
-  # 访问 https://nodejs.org/ 下载 LTS 版本
-  # Visit https://nodejs.org/ to download LTS version
-  ```
-- 验证安装 (Verify Installation)
-  ```cmd
-  python --version
-  node --version
-  npm --version
-  ```
-
-#### macOS 用户 (macOS Users)
-- 使用 Homebrew 安装 (Install using Homebrew)
-  ```bash
-  # 安装 Homebrew (Install Homebrew)
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-  # 安装 Python 和 Node.js (Install Python and Node.js)
-  brew install python node
-  ```
-- 验证安装 (Verify Installation)
-  ```bash
-  python3 --version
-  node --version
-  npm --version
-  ```
-
-#### Linux 用户 (Linux Users)
-- Ubuntu/Debian 用户 (Ubuntu/Debian Users)
-  ```bash
-  # 更新包列表 (Update package list)
-  sudo apt update
-
-  # 安装 Python 和 Node.js (Install Python and Node.js)
-  sudo apt install python3 python3-pip python3-venv nodejs npm
-  ```
-- CentOS/RHEL 用户 (CentOS/RHEL Users)
-  ```bash
-  # 安装 Python (Install Python)
-  sudo yum install python3 python3-pip
-
-  # 安装 Node.js (Install Node.js)
-  curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
-  sudo yum install nodejs
-  ```
+## 目录
+1. [环境准备](#1-环境准备)
+2. [源码获取](#2-源码获取)
+3. [前端部署](#3-前端部署)
+4. [后端部署](#4-后端部署)
+5. [配置说明](#5-配置说明)
+6. [Docker一站式部署](#6-docker一站式部署)
+7. [Nginx反向代理配置](#7-nginx反向代理配置)
+8. [常见问题排查](#8-常见问题排查)
 
 
-### 步骤 2: 获取项目代码 (Step 2: Get Project Code)
+## 1. 环境准备
 
-#### 方法 1: Git 克隆 (Method 1: Git Clone)
+### 1.1 必备工具及版本要求
+- **Git**：≥2.20.0
+- **Node.js**：≥16.0.0 (推荐18.0.0+)
+- **npm**：≥8.0.0 (随Node.js安装)
+- **Python**：≥3.8.0 (推荐3.11.0+)
+- **pip**：Python包管理工具 (通常随Python安装)
+- **Docker** (可选)：≥20.10.0 (用于容器化部署)
+- **Docker Compose** (可选)：≥v2.0.0
+
+### 1.2 操作系统支持
+- Windows 10/11 (x64)
+- macOS 10.15+ (Intel/Apple Silicon)
+- Linux (Ubuntu 18.04+, CentOS 7+, Debian 10+)
+
+### 1.3 安装命令
+
+#### Ubuntu/Debian
 ```bash
-# 克隆仓库 (Clone repository)
-git clone https://github.com/username/netdisk.git
+# 更新系统
+sudo apt update && sudo apt upgrade -y
+
+# 安装Git
+sudo apt install git -y
+
+# 安装Node.js和npm (使用NodeSource)
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# 安装Python及相关工具
+sudo apt install python3 python3-pip python3-venv -y
+```
+
+#### CentOS/RHEL
+```bash
+# 安装Git
+sudo yum install git -y
+
+# 安装Node.js和npm
+curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo -E bash -
+sudo yum install nodejs -y
+
+# 安装Python及相关工具
+sudo yum install python3 python3-pip -y
+```
+
+#### macOS (使用Homebrew)
+```bash
+# 安装Homebrew (如未安装)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# 安装所需工具
+brew install git node@18 python3
+```
+
+#### Windows
+- Git: 下载并安装 [Git for Windows](https://git-scm.com/download/win)
+- Node.js: 下载并安装 [Node.js 18.x](https://nodejs.org/en/download/)
+- Python: 下载并安装 [Python 3.11](https://www.python.org/downloads/)
+  > 安装时勾选 "Add Python to PATH"
+
+
+## 2. 源码获取
+
+```bash
+# 克隆仓库
+git clone https://github.com/hiyydd/pan.git
+cd pan
+```
+
+
+## 3. 前端部署
+
+前端项目位于 `netdisk` 目录，基于React和Vite构建。
+
+### 3.1 安装依赖
+```bash
 cd netdisk
+npm install
 ```
 
-#### 方法 2: 下载压缩包 (Method 2: Download ZIP)
+### 3.2 配置前端环境
+创建并配置环境变量文件：
 ```bash
-# 下载并解压项目文件 (Download and extract project files)
-# 从 GitHub 下载 ZIP 文件并解压到本地目录
-# Download ZIP file from GitHub and extract to local directory
+# 在netdisk目录下创建.env.production文件
+cat > .env.production << EOF
+# API基础路径，根据实际后端地址修改
+VITE_API_BASE_URL=/api
+# 网站标题
+VITE_APP_TITLE=简易网盘
+# 最大上传文件大小限制(MB)
+VITE_MAX_UPLOAD_SIZE=1024
+EOF
+```
+
+### 3.3 构建生产版本
+```bash
+# 执行构建命令
+npm run build
+```
+
+构建完成后，会在 `netdisk/dist` 目录生成静态文件，这些文件将被后端服务引用。
+
+
+## 4. 后端部署
+
+后端项目位于 `netdisk-backend` 目录，基于Flask构建。
+
+### 4.1 准备Python虚拟环境
+```bash
+# 返回项目根目录
+cd ..
+# 进入后端目录
+cd netdisk-backend
+# 创建虚拟环境
+python3 -m venv venv
+
+# 激活虚拟环境
+# Linux/macOS
+source venv/bin/activate
+# Windows (PowerShell)
+.\venv\Scripts\Activate.ps1
+# Windows (Command Prompt)
+venv\Scripts\activate.bat
+```
+
+### 4.2 安装后端依赖
+```bash
+pip install -r requirements.txt
+# 生产环境建议安装Gunicorn作为WSGI服务器
+pip install gunicorn
+```
+
+### 4.3 配置后端环境
+```bash
+# 在netdisk-backend目录下创建.env文件
+cat > .env << EOF
+#  Flask配置
+FLASK_APP=src.main:app
+FLASK_ENV=production
+SECRET_KEY=your_secure_secret_key_here  # 更换为随机安全密钥
+
+# 数据库配置
+DATABASE_URI=sqlite:///./netdisk.db  # SQLite数据库路径
+
+# 文件存储配置
+UPLOAD_FOLDER=./uploads  # 文件上传目录
+MAX_CONTENT_LENGTH=1073741824  # 1GB，与前端保持一致
+
+# 服务器配置
+HOST=0.0.0.0
+PORT=5000
+EOF
+```
+
+### 4.4 复制前端构建产物到后端
+```bash
+# 确保已激活虚拟环境，在netdisk-backend目录执行
+# 创建静态文件目录(如不存在)
+mkdir -p src/static
+# 复制前端构建产物
+cp -r ../netdisk/dist/* src/static/
+```
+
+### 4.5 初始化数据库
+```bash
+# 进入Python交互模式
+python3
+
+# 在Python交互环境中执行
+from src.main import app
+from src.models import db
+with app.app_context():
+    db.create_all()
+exit()
+```
+
+### 4.6 启动后端服务
+
+#### 开发环境启动 (仅用于测试)
+```bash
+flask run --host=0.0.0.0 --port=5000
+```
+
+#### 生产环境启动 (使用Gunicorn)
+```bash
+# 4个工作进程，绑定到5000端口
+gunicorn -w 4 -b 0.0.0.0:5000 "src.main:app"
+```
+
+#### 使用systemd管理服务 (Linux)
+创建服务文件：
+```bash
+sudo nano /etc/systemd/system/netdisk.service
+```
+
+文件内容：
+```ini
+[Unit]
+Description=Simple Netdisk Service
+After=network.target
+
+[Service]
+User=your_username
+Group=your_group
+WorkingDirectory=/path/to/pan/netdisk-backend
+ExecStart=/path/to/pan/netdisk-backend/venv/bin/gunicorn -w 4 -b 0.0.0.0:5000 "src.main:app"
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+启动服务：
+```bash
+sudo systemctl daemon-reload
+sudo systemctl start netdisk
+sudo systemctl enable netdisk  # 设置开机自启
 ```
 
 
-### 步骤 3: 后端设置 (Step 3: Backend Setup)
-- 进入后端目录 (Navigate to backend directory)
-  ```bash
-  cd netdisk-backend
-  ```
-- 创建虚拟环境 (Create virtual environment)
-  - Windows:
-    ```cmd
-    python -m venv venv
-    venv\Scripts\activate
-    ```
-  - macOS/Linux:
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
-- 安装依赖 (Install dependencies)
-  ```bash
-  pip install -r requirements.txt
-  ```
-- 初始化数据库 (Initialize database)
-  ```bash
-  # 数据库会在首次运行时自动创建
-  # Database will be automatically created on first run
-  ```
-- 启动后端服务 (Start backend service)
-  ```bash
-  python src/main.py
-  ```
-  成功启动后会看到 (You should see after successful startup):
-  ```
-  * Running on http://127.0.0.1:5000
-  * Debug mode: on
-  ```
+## 5. 配置说明
+
+### 5.1 前端关键配置文件
+- `netdisk/vite.config.js`: Vite构建配置，包含代理设置等
+- `netdisk/.env.production`: 生产环境变量配置
+- `netdisk/tailwind.config.js`: Tailwind CSS配置
+
+### 5.2 后端关键配置文件
+- `netdisk-backend/src/main.py`: Flask应用入口，包含路由注册
+- `netdisk-backend/src/models/__init__.py`: 数据库模型定义
+- `netdisk-backend/src/routes/file_routes.py`: 文件操作API路由
+- `netdisk-backend/.env`: 后端环境变量配置
 
 
-### 步骤 4: 前端设置 (Step 4: Frontend Setup)
-- 打开新终端并进入前端目录 (Open new terminal and navigate to frontend directory)
+## 6. Docker一站式部署
+
+### 6.1 构建Docker镜像
+
+项目根目录下创建 `Dockerfile`：
+```dockerfile
+# 构建前端
+FROM node:18-alpine AS frontend-build
+WORKDIR /app/netdisk
+COPY netdisk/package*.json ./
+RUN npm install
+COPY netdisk/ ./
+RUN npm run build
+
+# 构建后端
+FROM python:3.11-slim
+WORKDIR /app
+
+# 复制前端构建产物
+COPY --from=frontend-build /app/netdisk/dist ./netdisk-backend/src/static
+
+# 复制后端代码
+COPY netdisk-backend/ ./netdisk-backend
+WORKDIR /app/netdisk-backend
+
+# 安装后端依赖
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install gunicorn
+
+# 创建数据和上传目录
+RUN mkdir -p uploads
+RUN touch netdisk.db
+
+# 配置环境变量
+ENV FLASK_APP=src.main:app
+ENV FLASK_ENV=production
+ENV SECRET_KEY=default_docker_secret_key
+ENV DATABASE_URI=sqlite:///./netdisk.db
+ENV UPLOAD_FOLDER=./uploads
+ENV MAX_CONTENT_LENGTH=1073741824
+
+EXPOSE 5000
+
+# 启动服务
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "src.main:app"]
+```
+
+### 6.2 构建并运行容器
+```bash
+# 构建镜像
+docker build -t simple-netdisk:latest .
+
+# 运行容器
+docker run -d \
+  --name simple-netdisk \
+  -p 5000:5000 \
+  -v ./netdisk-backend/uploads:/app/netdisk-backend/uploads \
+  -v ./netdisk-backend/netdisk.db:/app/netdisk-backend/netdisk.db \
+  -e SECRET_KEY="your_secure_secret_key" \
+  simple-netdisk:latest
+```
+
+### 6.3 使用Docker Compose (推荐)
+
+创建 `docker-compose.yml`：
+```yaml
+version: '3.8'
+
+services:
+  netdisk:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: simple-netdisk
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=your_secure_secret_key_here
+      - DATABASE_URI=sqlite:///./netdisk.db
+      - UPLOAD_FOLDER=./uploads
+      - MAX_CONTENT_LENGTH=1073741824
+    volumes:
+      - netdisk-uploads:/app/netdisk-backend/uploads
+      - netdisk-db:/app/netdisk-backend
+
+volumes:
+  netdisk-uploads:
+  netdisk-db:
+```
+
+启动服务：
+```bash
+docker-compose up -d
+```
+
+
+## 7. Nginx反向代理配置
+
+为提升安全性和性能，推荐使用Nginx作为反向代理。
+
+创建Nginx配置文件：
+```bash
+sudo nano /etc/nginx/sites-available/netdisk
+```
+
+配置内容：
+```nginx
+server {
+    listen 80;
+    server_name your_domain.com;  # 替换为你的域名或服务器IP
+
+    # 重定向到HTTPS (可选)
+    # return 301 https://$host$request_uri;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 限制上传文件大小
+    client_max_body_size 1G;
+}
+
+# HTTPS配置示例 (需要SSL证书)
+# server {
+#     listen 443 ssl;
+#     server_name your_domain.com;
+#
+#     ssl_certificate /path/to/your/cert.pem;
+#     ssl_certificate_key /path/to/your/key.pem;
+#
+#     location / {
+#         proxy_pass http://127.0.0.1:5000;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#     }
+#
+#     client_max_body_size 1G;
+# }
+```
+
+启用配置：
+```bash
+sudo ln -s /etc/nginx/sites-available/netdisk /etc/nginx/sites-enabled/
+sudo nginx -t  # 测试配置
+sudo systemctl restart nginx
+```
+
+
+## 8. 常见问题排查
+
+### 8.1 前端构建失败
+- 检查Node.js版本是否符合要求
+- 尝试删除`node_modules`和`package-lock.json`后重新安装依赖：
   ```bash
   cd netdisk
-  ```
-- 安装依赖 (Install dependencies)
-  ```bash
+  rm -rf node_modules package-lock.json
   npm install
   ```
-  如果遇到网络问题，可以使用淘宝镜像 (If you encounter network issues, use Taobao mirror):
-  ```bash
-  npm install --registry https://registry.npmmirror.com
-  ```
-- 启动开发服务器 (Start development server)
-  ```bash
-  npm run dev
-  ```
-  成功启动后会看到 (You should see after successful startup):
-  ```
-  Local:   http://localhost:5173/
-  Network: http://192.168.x.x:5173/
-  ```
+
+### 8.2 后端启动失败
+- 检查Python虚拟环境是否正确激活
+- 检查依赖是否全部安装：`pip install -r requirements.txt`
+- 检查端口是否被占用：`netstat -tulpn | grep 5000`
+- 查看错误日志：`gunicorn`输出或系统日志
+
+### 8.3 文件上传失败
+- 检查前后端`MAX_UPLOAD_SIZE`和`MAX_CONTENT_LENGTH`配置是否一致
+- 检查上传目录权限：`chmod 755 netdisk-backend/uploads`
+- 检查磁盘空间是否充足
+
+### 8.4 数据库连接问题
+- 确保数据库文件可写：`chmod 664 netdisk-backend/netdisk.db`
+- 检查`DATABASE_URI`配置是否正确
+
+### 8.5 访问问题
+- 检查防火墙设置，确保端口(5000或80/443)已开放
+- 检查Nginx配置是否正确
+- 检查服务器IP和端口是否正确
 
 
-### 步骤 5: 验证安装 (Step 5: Verify Installation)
-- 访问应用 (Access the application)  
-  在浏览器中打开: http://localhost:5173  
-  Open in browser: http://localhost:5173
-- 测试功能 (Test features)
-  - ✅ 页面正常加载 (Page loads correctly)
-  - ✅ 可以切换主题 (Theme toggle works)
-  - ✅ 可以选择文件 (File selection works)
-  - ✅ 文件列表显示正常 (File list displays correctly)
-
-
-## 常见问题解决 (Troubleshooting)
-
-### 问题 1: 端口被占用 (Problem 1: Port Already in Use)
-- 错误信息 (Error Message):  
-  `Error: listen EADDRINUSE: address already in use :::5000`
-- 解决方案 (Solution):
-  ```bash
-  # Windows
-  netstat -ano | findstr :5000
-  taskkill /PID <PID> /F
-
-  # macOS/Linux
-  lsof -ti:5000 | xargs kill -9
-  ```
-
-### 问题 2: Python 模块未找到 (Problem 2: Python Module Not Found)
-- 错误信息 (Error Message):  
-  `ModuleNotFoundError: No module named 'flask'`
-- 解决方案 (Solution):
-  ```bash
-  # 确保虚拟环境已激活 (Ensure virtual environment is activated)
-  # Windows
-  venv\Scripts\activate
-
-  # macOS/Linux
-  source venv/bin/activate
-
-  # 重新安装依赖 (Reinstall dependencies)
-  pip install -r requirements.txt
-  ```
-
-### 问题 3: npm 安装失败 (Problem 3: npm Install Failed)
-- 错误信息 (Error Message):  
-  `npm ERR! network timeout`
-- 解决方案 (Solution):
-  ```bash
-  # 清除 npm 缓存 (Clear npm cache)
-  npm cache clean --force
-
-  # 使用淘宝镜像 (Use Taobao mirror)
-  npm install --registry https://registry.npmmirror.com
-
-  # 或者使用 yarn (Or use yarn)
-  npm install -g yarn
-  yarn install
-  ```
-
-### 问题 4: 文件上传失败 (Problem 4: File Upload Failed)
-- 可能原因 (Possible Causes):  
-  后端服务未启动 (Backend service not running)、跨域问题 (CORS issues)、文件大小超限 (File size exceeded)
-- 解决方案 (Solution):  
-  确保后端服务正在运行 (Ensure backend service is running)、检查浏览器控制台错误 (Check browser console for errors)、查看后端日志 (Check backend logs)
-
-
+部署完成后，通过服务器IP或域名即可访问简易网盘服务。默认情况下，服务运行在5000端口(直接访问)或80/443端口(通过Nginx)。
 ## API 文档 (API Documentation)
 
 ### 文件管理 API (File Management API)
