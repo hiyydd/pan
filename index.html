@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>巨天工作室 · 卫星地图</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<!-- Leaflet 核心 -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<!-- 搜索插件 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />
+<script src="https://cdn.jsdelivr.net/npm/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
+<!-- 定位插件 - 使用兼容版本 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-locatecontrol/0.79.0/L.Control.Locate.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-locatecontrol/0.79.0/L.Control.Locate.min.js"></script>
+<!-- 测距插件 -->
+<script src="https://cdn.jsdelivr.net/npm/leaflet-measure@3.1.0/dist/leaflet-measure.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-measure@3.1.0/dist/leaflet-measure.css" />
+<!-- 截图下载插件 -->
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+<!-- Font Awesome 图标 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+  html,body{margin:0;height:100%;font-family:Arial,sans-serif}
+  #map{width:100%;height:100%}
+  
+  /* 版权信息 */
+  .watermark {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 8px 0;
+    background: #000000;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: bold;
+    text-align: center;
+    z-index: 9999;
+    box-shadow: 0 -1px 5px rgba(0, 0, 0, 0.5);
+  }
+  
+  /* 错误提示 */
+  .tile-error-notice {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ff4444;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    z-index: 1000;
+    display: none;
+  }
+  
+  /* 控件样式 */
+  .leaflet-control-zoom {
+    bottom: 60px !important;
+  }
+
+  /* 功能按钮 */
+  .custom-control-button {
+    background-color: white;
+    border: 2px solid #136AEC;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 10px 0 0 10px;
+    cursor: pointer;
+    font-size: 18px;
+    color: #136AEC;
+    transition: all 0.2s ease;
+  }
+  
+  .custom-control-button:hover {
+    background-color: #f0f7ff;
+    transform: scale(1.1);
+  }
+  
+  /* 搜索框位置调整 */
+  .leaflet-control-geocoder {
+    margin-top: 110px !important;
+  }
+  
+  /* 测距控件样式 */
+  .leaflet-measure-control {
+    margin-top: 60px !important;
+  }
+  
+  /* 加载提示 */
+  .loading-indicator {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 15px 30px;
+    border-radius: 5px;
+    z-index: 10000;
+    display: none;
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="watermark">版权所有 © 巨天工作室 2025|审图号:巨(图审)13561369号|卫星图片版权所有,侵权必究</div>
+<div class="tile-error-notice">部分区域加载失败，尝试切换图层或缩小视图</div>
+<div class="loading-indicator">正在定位您的位置...</div>
+
+<script>
+// 等待所有依赖加载完成后初始化地图
+document.addEventListener('DOMContentLoaded', function() {
+  // 检查Leaflet是否加载成功
+  if (typeof L === 'undefined') {
+    alert('地图核心库加载失败，请刷新页面重试');
+    return;
+  }
+  
+  // 检查定位插件是否加载成功
+  if (typeof L.Control.Locate === 'undefined') {
+    console.warn('定位插件加载失败，将使用浏览器原生定位');
+  }
+  
+  // 初始化地图
+  const map = L.map('map', {
+    center: [39.9042, 116.4074], // 默认北京
+    zoom: 10,
+    minZoom: 1,
+    maxZoom: 19,
+    zoomControl: false,
+    attributionControl: true
+  });
+
+  /* 瓦片图层配置 */
+  // 1. OpenStreetMap 标准图层
+  const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(map);
+
+  // 2. OpenStreetMap 高清图层
+  const osmHOT = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+    maxZoom: 20,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &amp; <a href="https://www.hotosm.org/">Humanitarian OpenStreetMap Team</a>'
+  });
+
+  // 3. 卫星图层
+  const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 18,
+    attribution: 'Tiles &copy; Esri'
+  });
+
+  // 4. 高德高清图层
+  const gaodeHD = L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', {
+    maxZoom: 19,
+    subdomains: ['1', '2', '3', '4'],
+    attribution: '© 高德地图'
+  });
+
+  /* 图层控制器 */
+  L.control.layers({
+    "标准地图 (OSM)": osmStandard,
+    "高清地图 (HOT)": osmHOT,
+    "高德高清": gaodeHD,
+    "卫星地图": esriSatellite
+  }, null, {
+    position: 'topright',
+    collapsed: false
+  }).addTo(map);
+
+  /* 搜索控件 */
+  L.Control.geocoder({
+    position: 'topleft',
+    defaultMarkGeocode: true,
+    collapsed: false,
+    placeholder: '搜索地点...',
+    geocoder: L.Control.Geocoder.nominatim({
+      serviceUrl: 'https://nominatim.openstreetmap.org/',
+      geocodingQueryParams: {
+        'accept-language': 'zh-CN'
+      }
+    })
+  }).addTo(map);
+
+  /* 测距工具 - 修复点击时地图晃动的问题 */
+  L.control.measure({
+    position: 'topleft',
+    primaryLengthUnit: 'kilometers', // 默认千米
+    secondaryLengthUnit: 'meters',   // 次要单位米
+    primaryAreaUnit: 'hectares',     // 面积单位公顷
+    activeColor: '#136AEC',
+    completedColor: '#136AEC',
+    popupOptions: {
+      className: 'leaflet-measure-resultpopup',
+      autoPan: false,  // 关键修改：禁用弹出框自动平移地图
+      autoPanPadding: [10, 10]
+    },
+    strings: {
+      meters: '米',
+      kilometers: '千米',
+      hectares: '公顷',
+      squareMeters: '平方米',
+      start: '点击开始测量',
+      continue: '点击继续测量',
+      finish: '双击结束测量',
+      cancel: '取消',
+      distance: '距离',
+      area: '面积'
+    }
+  }).addTo(map);
+
+  /* 下载图片按钮 */
+  const downloadButton = L.control({position: 'topleft'});
+  downloadButton.onAdd = function(map) {
+    const div = L.DomUtil.create('div', 'custom-control-button');
+    div.title = '下载地图截图';
+    div.innerHTML = '<i class="fas fa-download"></i>';
+    
+    // 防止点击事件冒泡到地图
+    L.DomEvent.on(div, 'click', L.DomEvent.stopPropagation)
+              .on(div, 'click', function() {
+                // 显示加载提示
+                const loading = document.querySelector('.loading-indicator');
+                loading.style.display = 'block';
+                loading.textContent = '正在准备截图...';
+                
+                // 隐藏水印再截图
+                const watermark = document.querySelector('.watermark');
+                watermark.style.display = 'none';
+                
+                // 使用html2canvas截图
+                html2canvas(document.getElementById('map'), {
+                  useCORS: true,
+                  logging: false
+                }).then(canvas => {
+                  // 恢复水印显示
+                  watermark.style.display = 'block';
+                  
+                  // 创建下载链接
+                  const link = document.createElement('a');
+                  link.download = `地图截图_${new Date().getTime()}.png`;
+                  link.href = canvas.toDataURL('image/png');
+                  link.click();
+                  
+                  // 隐藏加载提示
+                  loading.style.display = 'none';
+                }).catch(err => {
+                  console.error('截图失败:', err);
+                  alert('截图失败，请重试');
+                  watermark.style.display = 'block';
+                  loading.style.display = 'none';
+                });
+              });
+    
+    return div;
+  };
+  downloadButton.addTo(map);
+
+  /* 定位控件 - 修复定位功能 */
+  if (typeof L.Control.Locate !== 'undefined') {
+    const locateControl = L.control.locate({
+      position: 'topleft',
+      drawCircle: true,
+      follow: false,
+      setView: true,
+      keepCurrentZoomLevel: false,
+      markerStyle: {
+        radius: 8,
+        fillColor: "#136AEC",
+        color: "#fff",
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.8
+      },
+      circleStyle: {
+        color: "#136AEC",
+        weight: 2,
+        opacity: 0.3
+      },
+      icon: '<i class="fas fa-location-arrow"></i>',
+      strings: {
+        title: "重新定位我的位置",
+        popup: "您的位置 (精度: {distance} 米)",
+        outsideMapBoundsMsg: "您的位置在地图可视范围之外"
+      },
+      locateOptions: {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 15000
+      }
+    }).addTo(map);
+  } else {
+    // 如果定位插件加载失败，创建一个基础的定位按钮
+    const locateButton = L.control({position: 'topleft'});
+    locateButton.onAdd = function(map) {
+      const div = L.DomUtil.create('div', 'custom-control-button');
+      div.title = '定位我的位置';
+      div.innerHTML = '<i class="fas fa-location-arrow"></i>';
+      
+      L.DomEvent.on(div, 'click', L.DomEvent.stopPropagation)
+                .on(div, 'click', autoLocate);
+      
+      return div;
+    };
+    locateButton.addTo(map);
+  }
+
+  /* 自动定位功能 */
+  function autoLocate() {
+    const loading = document.querySelector('.loading-indicator');
+    loading.style.display = 'block';
+    loading.textContent = '正在定位您的位置...';
+    
+    if (!navigator.geolocation) {
+      alert('您的浏览器不支持地理位置定位');
+      loading.style.display = 'none';
+      return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        // 定位成功，移动到用户位置
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        map.setView([lat, lng], 15);
+        
+        // 添加标记
+        L.marker([lat, lng]).addTo(map)
+          .bindPopup(`您的位置<br>纬度: ${lat.toFixed(6)}<br>经度: ${lng.toFixed(6)}`)
+          .openPopup();
+        
+        loading.style.display = 'none';
+      },
+      error => {
+        // 定位失败处理
+        loading.style.display = 'none';
+        let errorMsg = '定位失败: ';
+        switch(error.code) {
+          case 1:
+            errorMsg += '请允许位置权限';
+            break;
+          case 2:
+            errorMsg += '无法获取位置信息';
+            break;
+          case 3:
+            errorMsg += '定位超时';
+            break;
+          default:
+            errorMsg += '未知错误';
+        }
+        alert(errorMsg);
+        console.error('定位错误:', error);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 15000
+      }
+    );
+  }
+
+  // 页面加载完成后自动定位
+  autoLocate();
+
+  /* 缩放控件 */
+  L.control.zoom({
+    position: 'bottomright'
+  }).addTo(map);
+
+  /* 瓦片错误处理 */
+  let errorCount = 0;
+  map.eachLayer(layer => {
+    if (layer instanceof L.TileLayer) {
+      layer.on('tileerror', function(e) {
+        errorCount++;
+        if (errorCount >= 3) {
+          document.querySelector('.tile-error-notice').style.display = 'block';
+          setTimeout(() => {
+            document.querySelector('.tile-error-notice').style.display = 'none';
+            errorCount = 0;
+          }, 5000);
+        }
+      });
+    }
+  });
+
+  // 缩放事件监听
+  map.on('zoomend', function() {
+    const currentZoom = map.getZoom();
+    const activeLayer = map.hasLayer(osmStandard) ? osmStandard :
+                       map.hasLayer(osmHOT) ? osmHOT :
+                       map.hasLayer(gaodeHD) ? gaodeHD : esriSatellite;
+                       
+    if (currentZoom > activeLayer.options.maxZoom) {
+      alert(`当前图层最大支持缩放级别为 ${activeLayer.options.maxZoom}，建议切换到其他图层`);
+    }
+  });
+});
+</script>
+</body>
+</html>
